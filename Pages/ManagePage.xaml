@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="AmedasArchiveWindows.Pages.ManagePage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:AmedasArchiveWindows.Pages"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Padding="24" Spacing="20">
+
+            <!-- ヘッダーセクション -->
+            <StackPanel Spacing="4">
+                <TextBlock Text="データ同期・ストレージ管理" Style="{StaticResource TitleTextBlockStyle}" FontWeight="Bold" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                <TextBlock Text="気象データの同期範囲指定、および地域ごとのデータ削除を行います" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            </StackPanel>
+
+            <!-- 1. 総合ダッシュボードカード -->
+            <Grid ColumnSpacing="16">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <!-- データベース使用量 -->
+                <Border Grid.Column="0" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" Padding="16">
+                    <StackPanel Spacing="4" HorizontalAlignment="Center">
+                        <TextBlock Text="📁 ローカルDB推定容量" Style="{StaticResource BodyTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        <TextBlock x:Name="TotalSizeTextBlock" Text="0.00 MB" FontSize="28" FontWeight="Black" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- 総レコード数 -->
+                <Border Grid.Column="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" Padding="16">
+                    <StackPanel Spacing="4" HorizontalAlignment="Center">
+                        <TextBlock Text="📊 総データレコード数" Style="{StaticResource BodyTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        <TextBlock x:Name="TotalRecordsTextBlock" Text="0 件" FontSize="28" FontWeight="Black" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- 2. 同期対象期間の指定カード -->
+            <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" Padding="16">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="⏳ 同期対象期間の指定" Style="{StaticResource SubtitleTextBlockStyle}" FontWeight="SemiBold" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                    <TextBlock Text="新規データ同期の際に、指定された過去の年数に遡って気象実績データを取得します。元のデータが存在する上限分を取得します。" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    
+                    <StackPanel Orientation="Horizontal" Spacing="24" Margin="0,8,0,0">
+                        <RadioButton x:Name="Years10RadioButton" Content="過去 10 年分" IsChecked="True"/>
+                        <RadioButton x:Name="Years20RadioButton" Content="過去 20 年分"/>
+                        <RadioButton x:Name="Years30RadioButton" Content="過去 30 年分"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- 3. 同期ローディング・通知バー -->
+            <InfoBar x:Name="SyncStatusInfoBar" IsOpen="False" Severity="Success" Title="同期ステータス" Message="" Margin="0,4,0,4"/>
+
+            <StackPanel x:Name="GlobalSyncProgressPanel" Spacing="8" Padding="12" Visibility="Collapsed">
+                <ProgressBar IsIndeterminate="True" Height="4" />
+                <TextBlock x:Name="SyncProgressTextBlock" Text="都道府県データを同期中..." Style="{StaticResource CaptionTextBlockStyle}" FontWeight="SemiBold" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+            </StackPanel>
+
+            <!-- 4. 都道府県別同期・クリアリスト -->
+            <StackPanel Spacing="8">
+                <TextBlock Text="🗺 都道府県別の登録データクリア・同期" Style="{StaticResource SubtitleTextBlockStyle}" FontWeight="Bold"/>
+
+                <ListView x:Name="PrefectureListView" SelectionMode="None" ItemContainerTransitions="{x:Null}">
+                    <ListView.ItemTemplate>
+                        <DataTemplate>
+                            <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" Margin="0,4,0,4" Padding="12" HorizontalAlignment="Stretch">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- 都道府県情報 -->
+                                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Prefecture}" Style="{StaticResource BodyStrongTextBlockStyle}" FontSize="16"/>
+                                        <TextBlock Text="{Binding StatusText}" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                    </StackPanel>
+
+                                    <!-- 同期実行ボタン -->
+                                    <Button Grid.Column="1" Margin="0,0,8,0" Padding="12,6,12,6" Click="SyncButton_Click" Tag="{Binding Prefecture}">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <FontIcon Glyph="&#xE117;" FontSize="14" />
+                                            <TextBlock Text="同期" />
+                                        </StackPanel>
+                                    </Button>
+
+                                    <!-- データ削除（クリア）ボタン -->
+                                    <Button Grid.Column="2" Padding="12,6,12,6" Click="ClearButton_Click" Tag="{Binding Prefecture}">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <FontIcon Glyph="&#xE74D;" FontSize="14" Foreground="{ThemeResource SystemFillColorCriticalBrush}" />
+                                            <TextBlock Text="クリア" Foreground="{ThemeResource SystemFillColorCriticalBrush}" />
+                                        </StackPanel>
+                                    </Button>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+            </StackPanel>
+
+            <!-- 特記事項バナー -->
+            <InfoBar
+                IsOpen="True"
+                IsClosable="False"
+                Severity="Warning"
+                Title="データ同期に関する注意点"
+                Message="同期処理は気象庁の公開CSVデータをインターネット経由で順次ダウンロードするため、接続環境や年数設定によっては時間がかかる場合があります。ローカルDBの容量節約のため、不要になった都道府県は『クリア』ボタンで即座にデータ削除することができます。"
+                Margin="0,12,0,0"/>
+
+        </StackPanel>
+    </ScrollViewer>
+</Page>
+

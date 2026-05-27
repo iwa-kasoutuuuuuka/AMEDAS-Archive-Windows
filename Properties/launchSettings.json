@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "AmedasArchiveWindows (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "AmedasArchiveWindows (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}
