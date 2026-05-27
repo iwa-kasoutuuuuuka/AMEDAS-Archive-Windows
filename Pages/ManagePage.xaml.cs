@@ -89,25 +89,31 @@ namespace AmedasArchiveWindows.Pages
             }
         }
 
+        private System.Threading.CancellationTokenSource? _syncCancellationTokenSource;
+
         private async void SyncButton_Click(object sender, RoutedEventArgs e)
         {
             if (sender is Button syncButton && syncButton.Tag is string prefecture)
             {
                 SyncStatusInfoBar.IsOpen = false;
                 
-                // 同期対象年数の決定
                 int years = 10;
                 if (Years20RadioButton.IsChecked == true) years = 20;
                 else if (Years30RadioButton.IsChecked == true) years = 30;
 
                 try
                 {
-                    // UIを進捗表示に切り替えて全体入力をガード
+                    _syncCancellationTokenSource = new System.Threading.CancellationTokenSource();
+                    
                     GlobalSyncProgressPanel.Visibility = Visibility.Visible;
+                    SyncProgressBar.IsIndeterminate = false;
+                    SyncProgressBar.Value = 0;
                     SyncProgressTextBlock.Text = $"{prefecture} の気象データを同期中... (設定: {years}年分)";
+                    
                     PrefectureListView.IsEnabled = false;
+                    SyncAllButton.IsEnabled = false;
+                    CancelSyncButton.IsEnabled = true;
 
-                    // 指定都道府県に含まれるすべての観測所をロード
                     var stations = await _repository.GetStationsByPrefectureAsync(prefecture);
                     
                     if (stations.Count == 0)
@@ -119,17 +125,24 @@ namespace AmedasArchiveWindows.Pages
                     int count = 0;
                     foreach (var station in stations)
                     {
+                        if (_syncCancellationTokenSource.Token.IsCancellationRequested)
+                        {
+                            ShowInfoBar("同期キャンセル", $"{prefecture} の同期処理がユーザーによって中断されました。途中までのデータは保存されています。", InfoBarSeverity.Warning);
+                            break;
+                        }
+
                         count++;
+                        SyncProgressBar.Value = ((double)count / stations.Count) * 100;
                         SyncProgressTextBlock.Text = $"{prefecture} のデータを同期中... ({count}/{stations.Count}地点目: {station.Name})";
                         
-                        // 各アメダス観測所のデータを同期処理（非同期）
                         await _repository.SyncStationDataAsync(station.StationId, years);
                     }
 
-                    // 完了通知
-                    ShowInfoBar("同期完了", $"{prefecture} の全 {stations.Count} 地点の気象データ（{years}年分）の同期が完了しました。", InfoBarSeverity.Success);
+                    if (!_syncCancellationTokenSource.Token.IsCancellationRequested)
+                    {
+                        ShowInfoBar("同期完了", $"{prefecture} の全 {stations.Count} 地点の気象データ（{years}年分）の同期が完了しました。", InfoBarSeverity.Success);
+                    }
                     
-                    // 表示の再読み込み
                     await RefreshDashboardAsync();
                 }
                 catch (Exception ex)
@@ -140,7 +153,90 @@ namespace AmedasArchiveWindows.Pages
                 {
                     GlobalSyncProgressPanel.Visibility = Visibility.Collapsed;
                     PrefectureListView.IsEnabled = true;
+                    SyncAllButton.IsEnabled = true;
+                    CancelSyncButton.IsEnabled = false;
+                    _syncCancellationTokenSource?.Dispose();
+                    _syncCancellationTokenSource = null;
                 }
+            }
+        }
+
+        private async void SyncAllButton_Click(object sender, RoutedEventArgs e)
+        {
+            SyncStatusInfoBar.IsOpen = false;
+            
+            int years = 10;
+            if (Years20RadioButton.IsChecked == true) years = 20;
+            else if (Years30RadioButton.IsChecked == true) years = 30;
+
+            try
+            {
+                _syncCancellationTokenSource = new System.Threading.CancellationTokenSource();
+                
+                GlobalSyncProgressPanel.Visibility = Visibility.Visible;
+                SyncProgressBar.IsIndeterminate = false;
+                SyncProgressBar.Value = 0;
+                
+                PrefectureListView.IsEnabled = false;
+                SyncAllButton.IsEnabled = false;
+                CancelSyncButton.IsEnabled = true;
+
+                int prefCount = 0;
+                foreach (var pref in PrefectureOrder)
+                {
+                    if (_syncCancellationTokenSource.Token.IsCancellationRequested) break;
+
+                    prefCount++;
+                    var stations = await _repository.GetStationsByPrefectureAsync(pref);
+                    
+                    int stationCount = 0;
+                    foreach (var station in stations)
+                    {
+                        if (_syncCancellationTokenSource.Token.IsCancellationRequested) break;
+
+                        stationCount++;
+                        
+                        // プログレスバーは全国の都道府県進捗を示す
+                        SyncProgressBar.Value = ((double)prefCount / PrefectureOrder.Count) * 100;
+                        SyncProgressTextBlock.Text = $"全国一括同期中... ({prefCount}/{PrefectureOrder.Count}都道府県: {pref}) - {stationCount}/{stations.Count}地点目: {station.Name}";
+                        
+                        await _repository.SyncStationDataAsync(station.StationId, years);
+                    }
+                }
+
+                if (_syncCancellationTokenSource.Token.IsCancellationRequested)
+                {
+                    ShowInfoBar("同期キャンセル", "全国一括同期が途中で中断されました。そこまでに完了したデータは保存されています。", InfoBarSeverity.Warning);
+                }
+                else
+                {
+                    ShowInfoBar("同期完了", $"全国47都道府県（設定: {years}年分）の気象データの同期がすべて完了しました！", InfoBarSeverity.Success);
+                }
+                
+                await RefreshDashboardAsync();
+            }
+            catch (Exception ex)
+            {
+                ShowInfoBar("同期エラー", $"一括同期中に予期せぬエラーが発生しました: {ex.Message}", InfoBarSeverity.Error);
+            }
+            finally
+            {
+                GlobalSyncProgressPanel.Visibility = Visibility.Collapsed;
+                PrefectureListView.IsEnabled = true;
+                SyncAllButton.IsEnabled = true;
+                CancelSyncButton.IsEnabled = false;
+                _syncCancellationTokenSource?.Dispose();
+                _syncCancellationTokenSource = null;
+            }
+        }
+
+        private void CancelSyncButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_syncCancellationTokenSource != null && !_syncCancellationTokenSource.IsCancellationRequested)
+            {
+                _syncCancellationTokenSource.Cancel();
+                CancelSyncButton.IsEnabled = false;
+                SyncProgressTextBlock.Text = "キャンセルのリクエストを受信しました。現在の処理が終わり次第停止します...";
             }
         }
 

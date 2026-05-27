@@ -56,12 +56,42 @@
                 </StackPanel>
             </Border>
 
-            <!-- 3. 同期ローディング・通知バー -->
+            <!-- 3. 全国一括同期アクション -->
+            <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Background="{ThemeResource SystemControlBackgroundChromeMediumBrush}" Padding="16">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <TextBlock Text="🌐 全47都道府県のデータを一括で同期する" Style="{StaticResource BodyStrongTextBlockStyle}" FontSize="16" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                        <TextBlock Text="※設定年数により数十分以上かかる場合があります。進行状況は下部に表示されます。" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    </StackPanel>
+
+                    <Button x:Name="SyncAllButton" Grid.Column="1" Margin="0,0,8,0" Padding="16,8" Click="SyncAllButton_Click" Style="{StaticResource AccentButtonStyle}">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <FontIcon Glyph="&#xE118;" FontSize="16" />
+                            <TextBlock Text="全国一括同期を開始" FontWeight="Bold" />
+                        </StackPanel>
+                    </Button>
+                    
+                    <Button x:Name="CancelSyncButton" Grid.Column="2" Padding="16,8" Click="CancelSyncButton_Click" IsEnabled="False">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <FontIcon Glyph="&#xE71A;" FontSize="16" Foreground="{ThemeResource SystemFillColorCriticalBrush}" />
+                            <TextBlock Text="同期を停止" FontWeight="Bold" Foreground="{ThemeResource SystemFillColorCriticalBrush}" />
+                        </StackPanel>
+                    </Button>
+                </Grid>
+            </Border>
+
+            <!-- 4. 同期ローディング・通知バー -->
             <InfoBar x:Name="SyncStatusInfoBar" IsOpen="False" Severity="Success" Title="同期ステータス" Message="" Margin="0,4,0,4"/>
 
             <StackPanel x:Name="GlobalSyncProgressPanel" Spacing="8" Padding="12" Visibility="Collapsed">
-                <ProgressBar IsIndeterminate="True" Height="4" />
-                <TextBlock x:Name="SyncProgressTextBlock" Text="都道府県データを同期中..." Style="{StaticResource CaptionTextBlockStyle}" FontWeight="SemiBold" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                <ProgressBar x:Name="SyncProgressBar" IsIndeterminate="True" Height="4" />
+                <TextBlock x:Name="SyncProgressTextBlock" Text="データを同期中..." Style="{StaticResource CaptionTextBlockStyle}" FontWeight="SemiBold" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
             </StackPanel>
 
             <!-- 4. 都道府県別同期・クリアリスト -->
