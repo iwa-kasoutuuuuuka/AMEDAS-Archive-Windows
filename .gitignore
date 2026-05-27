@@ -48,3 +48,6 @@ Generated Files/
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Archives
+*.zip
